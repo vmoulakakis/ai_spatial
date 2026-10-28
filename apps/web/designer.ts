@@ -1,4 +1,4 @@
-import {demoDesigner,createDesignerStore,metrics,movePoint,moveWall,setEdgeLength,setPointLock,setEdgeLock,setSnap,insertPoint,deletePoint,snapValue,type DesignerScene} from '../../packages/geometry-core/designer.js';
+import {demoDesigner,createDesignerStore,metrics,movePoint,moveWall,setEdgeLength,setEdgeAngle,setPointLock,setEdgeLock,setSnap,insertPoint,deletePoint,snapValue,type DesignerScene} from '../../packages/geometry-core/designer.js';
 type Selection={type:'point'|'wall';index:number};
 type Camera={x:number;y:number;w:number;h:number};
 type Drag={pointerId:number;type:'point'|'wall'|'pan';index:number;scene:DesignerScene;preview:DesignerScene;world:{x:number;y:number};client:{x:number;y:number};camera:Camera;didMove:boolean};
@@ -20,15 +20,27 @@ function planSVG(scene:DesignerScene){
  const m=dims(scene),pts=scene.points;const polygon=pts.map(p=>`${p.xCm},${p.zCm}`).join(' ');
  const pane=$('drawing'),screenScale=Math.max(.1,Math.min(pane.clientWidth/camera.w,pane.clientHeight/camera.h));
  const handleR=Math.max(7,9/screenScale),hitR=Math.max(19,23/screenScale),labelSize=Math.max(13,12.5/screenScale),boxHeight=Math.max(24,25/screenScale);
+ const labelBoxes:{left:number;top:number;right:number;bottom:number}[]=[];
  const edges=m.edges.map(e=>{
   const a=pts[e.index],b=pts[(e.index+1)%pts.length],len=e.lengthCm,dx=b.xCm-a.xCm,dz=b.zCm-a.zCm;
   const nx=-dz/Math.max(1,len),ny=dx/Math.max(1,len),cx=(a.xCm+b.xCm)/2+nx*29,cy=(a.zCm+b.zCm)/2+ny*29;
   const chosen=selection.type==='wall'&&selection.index===e.index;
   const label=`${fmt(len)} cm${e.locked?' 🔒':''}`;
   const box=Math.max(77,label.length*labelSize*.61+18/screenScale);
+  labelBoxes.push({left:cx-box/2,top:cy-boxHeight/2,right:cx+box/2,bottom:cy+boxHeight/2});
   return `<g data-edge="${e.index}" role="button" tabindex="0" aria-label="Τοίχος ${safe(e.from)}–${safe(e.to)} ${fmt(len)} εκατοστά"><line class="${chosen?'edge-active':'outline'}" x1="${a.xCm}" y1="${a.zCm}" x2="${b.xCm}" y2="${b.zCm}"/><line class="edge-target" x1="${a.xCm}" y1="${a.zCm}" x2="${b.xCm}" y2="${b.zCm}"/><line class="dim-line" x1="${cx-nx*14}" y1="${cy-ny*14}" x2="${cx+nx*14}" y2="${cy+ny*14}"/><rect x="${cx-box/2}" y="${cy-boxHeight/2}" width="${box}" height="${boxHeight}" rx="6" class="dim-bg ${chosen?'active':''}"/><text class="dim-label ${chosen?'active':''}" style="font-size:${labelSize}px" x="${cx}" y="${cy}">${label}</text></g>`;
  }).join('');
- const points=pts.map((p,index)=>{const chosen=selection.type==='point'&&selection.index===index;return `<g data-vertex="${index}" role="button" tabindex="0" aria-label="Μετακίνηση σημείου ${safe(p.id)}. X ${fmt(p.xCm)} Y ${fmt(p.zCm)} εκατοστά"><circle class="handle-target" cx="${p.xCm}" cy="${p.zCm}" r="${hitR}"/><circle class="handle ${chosen?'active':''} ${p.locked?'locked':''}" cx="${p.xCm}" cy="${p.zCm}" r="${handleR}"/><text class="corner-label" style="font-size:${labelSize}px" x="${p.xCm+handleR+6}" y="${p.zCm-handleR-4}">${safe(p.id)}${p.locked?'🔒':''}</text></g>`;}).join('');
+ const points=pts.map((p,index)=>{const chosen=selection.type==='point'&&selection.index===index;
+  const gap=handleR+6,textWidth=Math.max(labelSize, p.id.length*labelSize*.68+labelSize*.5);
+  const possible=[
+   {x:p.xCm+gap,y:p.zCm-gap,anchor:'start'},
+   {x:p.xCm-gap,y:p.zCm-gap,anchor:'end'},
+   {x:p.xCm-gap,y:p.zCm+gap+labelSize,anchor:'end'},
+   {x:p.xCm+gap,y:p.zCm+gap+labelSize,anchor:'start'}] as const;
+  const penalty=(v:typeof possible[number])=>{const left=v.anchor==='start'?v.x:v.x-textWidth,top=v.y-labelSize,right=left+textWidth,bottom=v.y;
+   return labelBoxes.reduce((sum,b)=>sum+(left<b.right+3&&right>b.left-3&&top<b.bottom+3&&bottom>b.top-3?1:0),0);};
+  const label=possible.reduce((best,candidate)=>penalty(candidate)<penalty(best)?candidate:best);
+  return `<g data-vertex="${index}" role="button" tabindex="0" aria-label="Μετακίνηση σημείου ${safe(p.id)}. X ${fmt(p.xCm)} Y ${fmt(p.zCm)} εκατοστά"><circle class="handle-target" cx="${p.xCm}" cy="${p.zCm}" r="${hitR}"/><circle class="handle ${chosen?'active':''} ${p.locked?'locked':''}" cx="${p.xCm}" cy="${p.zCm}" r="${handleR}"/><text class="corner-label" style="font-size:${labelSize}px" x="${label.x}" y="${label.y}" text-anchor="${label.anchor}">${safe(p.id)}${p.locked?'🔒':''}</text></g>`;}).join('');
  return `<svg id="cad-svg" data-testid="designer-canvas" role="img" aria-label="Διαδραστική κάτοψη με ${pts.length} σημεία" viewBox="${camera.x} ${camera.y} ${camera.w} ${camera.h}" preserveAspectRatio="xMidYMid meet"><defs><pattern id="micro" patternUnits="userSpaceOnUse" width="10" height="10"><path d="M10 0H0V10" fill="none" stroke="#7fac92" stroke-width=".28"/></pattern><pattern id="major" patternUnits="userSpaceOnUse" width="50" height="50"><rect width="50" height="50" fill="url(#micro)"/><path d="M50 0H0V50" fill="none" stroke="#8fc1a2" stroke-width=".7"/></pattern></defs><rect x="-3000" y="-3000" width="6000" height="6000" fill="url(#major)"/><polygon class="floor" points="${polygon}"/>${edges}${points}</svg>`;
 }
 function threeSVG(scene:DesignerScene){const pts=scene.points;const project=(p:{xCm:number;zCm:number},height:number)=>({x:(p.xCm-p.zCm)*.66,y:(p.xCm+p.zCm)*.32-height*.58});const floor=pts.map(p=>project(p,0)),top=pts.map(p=>project(p,scene.heightCm));
@@ -47,6 +59,7 @@ function paint(scene:DesignerScene){current=scene;const m=dims(scene),edge=selec
  ($<HTMLInputElement>('pointZ')).value=point?String(point.zCm):'';
  ($<HTMLInputElement>('lockPoint')).checked=!!point?.locked;
  ($<HTMLInputElement>('wallLength')).value=edge?String(edge.lengthCm):'';
+ ($<HTMLInputElement>('wallAngle')).value=edge?String(edge.angleDeg):'';
  ($<HTMLInputElement>('lockLength')).checked=!!edge?.locked;
  $('pointProperties').classList.toggle('hide',!point);
  $('wallProperties').classList.toggle('hide',!edge);
@@ -112,6 +125,7 @@ $('drawing').addEventListener('keydown',e=>{
 $('applyPoint').addEventListener('click',()=>apply(()=>store.commit(movePoint(store.get(),selection.index,number('pointX'),number('pointZ'))),'Ορίστηκε ακριβής θέση σε εκατοστά.'));
 $('lockPoint').addEventListener('change',()=>apply(()=>store.commit(setPointLock(store.get(),selection.index,$<HTMLInputElement>('lockPoint').checked)),'Αλλάχθηκε το κλείδωμα σημείου.'));
 $('applyLength').addEventListener('click',()=>apply(()=>store.commit(setEdgeLength(store.get(),selection.index,number('wallLength'))),'Εφαρμόστηκε το ακριβές μήκος τοίχου.'));
+$('applyAngle').addEventListener('click',()=>apply(()=>store.commit(setEdgeAngle(store.get(),selection.index,number('wallAngle'))),'Εφαρμόστηκε η ακριβής γωνία τοίχου.'));
 $('lockLength').addEventListener('change',()=>apply(()=>store.commit(setEdgeLock(store.get(),selection.index,$<HTMLInputElement>('lockLength').checked)),'Αλλάχθηκε το κλείδωμα μήκους.'));
 $('splitWall').addEventListener('click',()=>apply(()=>{const next=store.commit(insertPoint(store.get(),selection.index));selection={type:'point',index:(selection.index+1)%next.points.length};return next;},'Προστέθηκε ενδιάμεσο σημείο.'));
 $('deletePoint').addEventListener('click',()=>apply(()=>{const next=store.commit(deletePoint(store.get(),selection.index));selection={type:'point',index:Math.min(selection.index,next.points.length-1)};return next;},'Το σημείο αφαιρέθηκε.'));

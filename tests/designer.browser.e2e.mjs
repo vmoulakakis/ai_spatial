@@ -16,6 +16,10 @@ try{
   await page.locator('[data-testid="designer-canvas"]').waitFor();
   assert.match(await page.locator('#metrics').innerText(),/9,72/);
   assert.ok((await page.evaluate(()=>document.documentElement.scrollWidth))<=width+2,'horizontal overflow '+width);
+  // Dimension callouts must not overlap corner names at the concave L-shaped notch.
+  const label=await page.locator('[data-vertex="3"] .corner-label').boundingBox(),dimension=await page.locator('[data-edge="2"] .dim-bg').boundingBox();
+  assert.ok(label&&dimension,'dimension and vertex label must be visible');
+  assert.ok(label.x+label.width<=dimension.x||dimension.x+dimension.width<=label.x||label.y+label.height<=dimension.y||dimension.y+dimension.height<=label.y,'D vertex label must not overlap adjacent 140cm callout at '+width);
   await page.screenshot({path:`test-results/v5-designer-${width}-before.png`,fullPage:true});
   // Mouse-driven direct manipulation: B from (380, 0) to (360, 0) with live dimensions.
   const start=await screen(page,380,0),end=await screen(page,360,0);

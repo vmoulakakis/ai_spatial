@@ -81,6 +81,17 @@ export function setEdgeLength(s:DesignerScene,index:number,lengthCm:number):Desi
   const lock=c.edgeLocks.find(l=>sameEdge(l,a.id,b.id));if(lock)lock.lengthCm=dist(c.points[index],c.points[(index+1)%n]);
  });
 }
+export function setEdgeAngle(s:DesignerScene,index:number,angleDeg:number):DesignerScene{
+ const n=s.points.length;if(!Number.isInteger(index)||index<0||index>=n)throw Error('Άγνωστος τοίχος.');
+ if(!Number.isFinite(angleDeg)||angleDeg < -180||angleDeg>180)throw Error('Η γωνία πρέπει να είναι μεταξύ −180° και 180°.');
+ const a=s.points[index],b=s.points[(index+1)%n],length=dist(a,b),angle=angleDeg*Math.PI/180;
+ if(a.locked&&b.locked)throw Error('Και τα δύο άκρα είναι κλειδωμένα.');
+ return changed(s,c=>{if(!a.locked){const v=c.points[index],fixed=c.points[(index+1)%n];
+   if(b.locked){v.xCm=limit(fixed.xCm-length*Math.cos(angle));v.zCm=limit(fixed.zCm-length*Math.sin(angle));}
+   else {const dest=c.points[(index+1)%n];dest.xCm=limit(v.xCm+length*Math.cos(angle));dest.zCm=limit(v.zCm+length*Math.sin(angle));}}
+  else {const dest=c.points[(index+1)%n];dest.xCm=limit(a.xCm+length*Math.cos(angle));dest.zCm=limit(a.zCm+length*Math.sin(angle));}
+ });
+}
 export function setPointLock(s:DesignerScene,index:number,locked:boolean){return changed(s,c=>{if(!c.points[index])throw Error('Άγνωστο σημείο.');c.points[index].locked=locked;});}
 export function setEdgeLock(s:DesignerScene,index:number,locked:boolean){return changed(s,c=>{const n=c.points.length;if(!Number.isInteger(index)||index<0||index>=n)throw Error('Άγνωστος τοίχος.');const a=c.points[index],b=c.points[(index+1)%n];c.edgeLocks=c.edgeLocks.filter(l=>!sameEdge(l,a.id,b.id));if(locked)c.edgeLocks.push({from:a.id,to:b.id,lengthCm:dist(a,b)});});}
 export function setSnap(s:DesignerScene,snapCm:number){return changed(s,c=>{if(![0,1,5,10].includes(snapCm))throw Error('Μη έγκυρο βήμα.');c.snapCm=snapCm;});}

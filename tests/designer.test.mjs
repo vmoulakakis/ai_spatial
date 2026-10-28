@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {demoDesigner,metrics,movePoint,moveWall,setEdgeLength,setPointLock,setEdgeLock,setSnap,insertPoint,deletePoint,createDesignerStore,snapValue,validateDesign} from '../dist/packages/geometry-core/designer.js';
+import {demoDesigner,metrics,movePoint,moveWall,setEdgeLength,setEdgeAngle,setPointLock,setEdgeLock,setSnap,insertPoint,deletePoint,createDesignerStore,snapValue,validateDesign} from '../dist/packages/geometry-core/designer.js';
 const base=()=>demoDesigner();
 test('L-shaped room exact topology, 9.72 m² and 1360 cm perimeter',()=>{const m=metrics(base());assert.equal(m.areaM2,9.72);assert.equal(m.perimeterCm,1360);assert.equal(m.edges.length,6);});
 test('drag vertex changes two adjacent displayed dimensions and area at the same revision',()=>{const old=base(),next=movePoint(old,1,360,0);const m=metrics(next);assert.equal(next.points[1].xCm,360);assert.equal(m.edges[0].lengthCm,360);assert.equal(m.edges[1].lengthCm,181.1);assert.equal(m.areaM2,9.54);assert.equal(old.points[1].xCm,380);assert.equal(next.revision,1);});
@@ -19,3 +19,6 @@ test('snap grid increments and free 0.1cm setting',()=>{assert.equal(snapValue(2
 test('undo redo group a completed drag into one action with monotonic revision',()=>{const store=createDesignerStore();const before=store.get(),n=store.commit(movePoint(before,1,360,0));assert.equal(store.history().undo,1);const u=store.undo();assert.ok(u.revision>n.revision);assert.equal(metrics(u).edges[0].lengthCm,380);const r=store.redo();assert.ok(r.revision>u.revision);assert.equal(metrics(r).edges[0].lengthCm,360);});
 test('locked coordinates block impossible edited dimension; no hidden distortion',()=>{let s=setPointLock(base(),0,true);s=setPointLock(s,1,true);assert.throws(()=>setEdgeLength(s,0,400),/κλειδωμένα/);validateDesign(s);});
 test('duplicate IDs and extreme coordinates rejected',()=>{const s=base();s.points[1].id='A';assert.throws(()=>validateDesign(s));assert.throws(()=>movePoint(base(),1,Infinity,0));assert.throws(()=>movePoint(base(),1,4000,0));});
+
+test('explicit wall angle edit rotates correct endpoint without altering locked length',()=>{let s=setEdgeLock(base(),0,true);s=setEdgeAngle(s,0,-2);assert.ok(metrics(s).edges[0].angleDeg<0);assert.equal(metrics(s).edges[0].lengthCm,380);});
+test('angle edit cannot silently move two locked vertices',()=>{let s=setPointLock(base(),0,true);s=setPointLock(s,1,true);assert.throws(()=>setEdgeAngle(s,0,12),/κλειδωμένα/);});
