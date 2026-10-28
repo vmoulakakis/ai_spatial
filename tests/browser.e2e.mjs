@@ -22,10 +22,12 @@ async function run(){
   await page.screenshot({path:"test-results/"+label+"-plan.png",fullPage:true});
   if(label==="mobile"){
    assert.match(await page.locator("#stats").innerText(),/260/);
+   await page.locator('[data-panel="editor"]').click();
    await page.locator("#wallCm").fill("240");
    await page.locator("[data-apply]").click();
    assert.match(await page.locator("#stats").innerText(),/240/);
    assert.match(await page.locator("#stats").innerText(),/4,8/);
+   await page.locator('[data-panel="canvas"]').click();
    await page.locator('.mobile [data-view="space"]').click();
    await page.locator('[data-testid="room3d"]').waitFor();
    assert.match(await page.locator("#stats").innerText(),/240/);
@@ -33,6 +35,7 @@ async function run(){
    await page.locator('.mobile [data-view="fit"]').click();
    assert.match(await page.locator("#inspector").innerText(),/NEEDS_CONFIRMATION/);
    await page.locator('.mobile [data-view="plan"]').click();
+   await page.locator('[data-panel="editor"]').click();
    await page.locator('[data-select="south"]').click();
    await page.locator("#wallCm").fill("260");
    await page.locator("[data-apply]").click();
