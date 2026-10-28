@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","module":"ES2022","moduleResolution":"Bundler","lib":["ES2022","DOM"],"rootDir":".","outDir":"dist","strict":true,"skipLibCheck":true,"noEmitOnError":true,"forceConsistentCasingInFileNames":true},"include":["packages/**/*.ts","apps/web/**/*.ts"],"exclude":["dist","node_modules"]}
