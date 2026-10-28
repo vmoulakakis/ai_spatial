@@ -1,7 +1,14 @@
 # FitSpace AI — Spatial Intelligence
 
 > **Dedicated canonical repository:** `vmoulakakis/ai_spatial`  
-> **Status:** Architecture/specification transfer (2026-10-28). No AI scanner, mobile app, 3D editor, or production service has been implemented in this repository yet.
+> **Status (2026-10-28):** Draft P0 implementation in [PR #2](https://github.com/vmoulakakis/ai_spatial/pull/2), not merged or deployed. AI camera scanning, vision inference and production services remain unimplemented.
+
+## P0 source and verification
+- `packages/geometry-core` — deterministic, revisioned rectangular room geometry and correction engine.
+- `packages/fit-rules` — conservative vendor-neutral physical footprint evaluation.
+- `apps/web` — Greek-first mobile PWA with editable 2D and shared-model isometric 3D scene.
+- `npm install && npm test` — TypeScript build and unit tests; `npm run browser:test` — Playwright Chromium UI test after browser installation.
+- [Implementation limits and QA](docs/P0_IMPLEMENTATION.md). P0 remains a **reviewable foundation**, not a certified scanner or physically safe product-fit service.
 
 ## Mission
 Build a reusable **mobile-first spatial measurement and product-fit platform**. A visitor takes guided photographs of a room from multiple angles, supplies a calibrated scale measurement, corrects any estimate in a 2D/3D editor, and receives consistent geometry and product-fit results. The same engine can be embedded in authorized independent websites without forcing an app download.
