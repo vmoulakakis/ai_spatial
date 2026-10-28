@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json && node tools/copy-assets.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs",
+    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs && node tests/measurement.browser.e2e.mjs",
     "start": "node tools/serve.mjs"
   },
   "devDependencies": {
