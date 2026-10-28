@@ -38,7 +38,7 @@ export function mountThree(host,{onPick,onMove}){
    const cap=new THREE.Mesh(new THREE.BoxGeometry(length+.02,.025,.075),capMat);cap.position.set(mesh.position.x,height+.012,mesh.position.z);cap.rotation.y=mesh.rotation.y;geometry.add(cap);
   }
   const bounds=points.reduce((b,p)=>({minX:Math.min(b.minX,p.xCm),maxX:Math.max(b.maxX,p.xCm),minZ:Math.min(b.minZ,p.zCm),maxZ:Math.max(b.maxZ,p.zCm)}),{minX:Infinity,maxX:-Infinity,minZ:Infinity,maxZ:-Infinity});
-  if(first){const midx=(bounds.minX+bounds.maxX)/200,midz=(bounds.minZ+bounds.maxZ)/200,reach=Math.max(3,(bounds.maxX-bounds.minX)/100,(bounds.maxZ-bounds.minZ)/100);controls.target.set(midx,.95,midz);camera.position.set(midx+reach*1.45,Math.max(3,reach*1.2),midz+reach*1.55);controls.update();first=false;}
+  if(first){const midx=(bounds.minX+bounds.maxX)/200,midz=(bounds.minZ+bounds.maxZ)/200,reach=Math.max(3,(bounds.maxX-bounds.minX)/100,(bounds.maxZ-bounds.minZ)/100);controls.target.set(midx,.95,midz);const aspect=Math.max(.38,host.clientWidth/Math.max(1,host.clientHeight));const portraitScale=aspect<.85?.85/aspect:1;camera.position.set(midx+reach*1.5*portraitScale,Math.max(3,reach*1.15)*portraitScale,midz+reach*1.6*portraitScale);controls.update();first=false;}
  }
  function object(item,selected){const g=new THREE.Group();g.userData.itemId=item.id;g.position.set(item.xCm/100,0,item.zCm/100);g.rotation.y=-item.rotationDeg*Math.PI/180;
   const w=item.widthCm/100,d=item.depthCm/100,h=item.heightCm/100;

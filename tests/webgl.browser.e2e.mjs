@@ -18,6 +18,9 @@ try{await mkdir('test-results',{recursive:true});await ready();browser=await chr
   assert.equal(await page.locator('#objWidth').inputValue(),'160');
   await page.locator('#objWidth').fill('175');await page.locator('#updateFurniture').click();
   assert.equal(await page.locator('#objWidth').inputValue(),'175');
+  if(w<=750)await page.locator('#mobileToggle').click();
+  await page.screenshot({path:`test-results/v6-webgl-${w}-with-sofa.png`,fullPage:true});
+  if(w<=750)await page.locator('#mobileToggle').click();
   await page.locator('#objX').fill('390');await page.locator('#updateFurniture').click();
   assert.match(await page.locator('#stageStatus').innerText(),/δεν χωρά/);
   await page.locator('#furnitureUndo').click();assert.equal(await page.locator('#furnitureList [data-furniture]').count(),1);

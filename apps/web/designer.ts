@@ -74,6 +74,7 @@ function paint(scene:DesignerScene){current=scene;const m=dims(scene),edge=selec
  $('wallProperties').classList.toggle('hide',!edge);
  $('revision').textContent=`REV ${scene.revision}`;
  $('snapLabel').textContent=scene.snapCm===0?'FREE':scene.snapCm+' cm';
+ $('stage').classList.toggle('webgl-active',view==='3d');
  renderFurniturePanel(scene);
 }
 function refresh(){const s=store.get();paint(s);const h=store.history();for(const id of ['undo','undoTool'])($<HTMLButtonElement>(id)).disabled=!h.undo;for(const id of ['redo','redoTool'])($<HTMLButtonElement>(id)).disabled=!h.redo;
@@ -122,8 +123,8 @@ $('updateFurniture').addEventListener('click',()=>furnitureAction(()=>{
  return result;
 },'Ενημερώθηκαν οι ακριβείς διαστάσεις, θέση και χρώμα.'));
 $('removeFurniture').addEventListener('click',()=>furnitureAction(()=>removeFurniture(furnishingStore.get(),selectedFurniture||''),'Το αντικείμενο αφαιρέθηκε από το 3D.'));
-$('furnitureUndo').addEventListener('click',()=>{try{const next=furnishingStore.undo(store.get());selectedFurniture=next.items.some(i=>i.id===selectedFurniture)?selectedFurniture:next.items.at(-1)?.id||null;refresh();}catch(err){info(err instanceof Error?err.message:'Undo μη διαθέσιμο.',true);}});
-$('furnitureRedo').addEventListener('click',()=>{try{const next=furnishingStore.redo(store.get());selectedFurniture=next.items.some(i=>i.id===selectedFurniture)?selectedFurniture:next.items.at(-1)?.id||null;refresh();}catch(err){info(err instanceof Error?err.message:'Redo μη διαθέσιμο.',true);}});
+$('furnitureUndo').addEventListener('click',()=>{try{furnishingStore.undo(store.get());selectedFurniture=null;refresh();}catch(err){info(err instanceof Error?err.message:'Undo μη διαθέσιμο.',true);}});
+$('furnitureRedo').addEventListener('click',()=>{try{furnishingStore.redo(store.get());selectedFurniture=null;refresh();}catch(err){info(err instanceof Error?err.message:'Redo μη διαθέσιμο.',true);}});
 function apply(callback:()=>DesignerScene,message:string){try{callback();info(message);refresh();}catch(e){info(e instanceof Error?e.message:'Μη επιτρεπτή αλλαγή.',true);}}
 function mapPointer(e:PointerEvent){const svg=document.querySelector<SVGSVGElement>('#cad-svg');if(!svg)return null;const ctm=svg.getScreenCTM();if(!ctm)return null;const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(ctm.inverse());return {x:p.x,y:p.y};}
 function snapped(scene:DesignerScene,v:number){return snapValue(v,scene.snapCm);}
