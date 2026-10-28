@@ -24,3 +24,8 @@
 }
 
 .polygon-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border-radius:9px;background:#c7ed83;color:#143625;text-decoration:none;font-size:12px;font-weight:800}.polygon-link:focus-visible{outline:3px solid #236c79;outline-offset:2px}
+
+/* V4: links and history actions reflow on narrow phones rather than widening the page. */
+.actions{flex-wrap:wrap;min-width:0}
+.actions .polygon-link{max-width:100%;white-space:normal;text-align:center;overflow-wrap:anywhere}
+@media(max-width:460px){.actions{gap:6px}.actions .polygon-link{min-height:38px;padding:8px 10px}}
