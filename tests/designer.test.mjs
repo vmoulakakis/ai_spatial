@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {demoDesigner,metrics,movePoint,moveWall,setEdgeLength,setEdgeAngle,setPointLock,setEdgeLock,setSnap,insertPoint,deletePoint,createDesignerStore,snapValue,validateDesign} from '../dist/packages/geometry-core/designer.js';
+const base=()=>demoDesigner();
+test('L-shaped room exact topology, 9.72 m² and 1360 cm perimeter',()=>{const m=metrics(base());assert.equal(m.areaM2,9.72);assert.equal(m.perimeterCm,1360);assert.equal(m.edges.length,6);});
+test('drag vertex changes two adjacent displayed dimensions and area at the same revision',()=>{const old=base(),next=movePoint(old,1,360,0);const m=metrics(next);assert.equal(next.points[1].xCm,360);assert.equal(m.edges[0].lengthCm,360);assert.equal(m.edges[1].lengthCm,181.1);assert.equal(m.areaM2,9.54);assert.equal(old.points[1].xCm,380);assert.equal(next.revision,1);});
+test('drag wall body shifts both endpoints while keeping its own length fixed',()=>{const s=base(),next=moveWall(s,1,20);assert.equal(next.points[1].xCm,400);assert.equal(next.points[2].xCm,400);assert.equal(metrics(next).edges[1].lengthCm,180);assert.equal(metrics(next).areaM2,10.08);});
+test('side-panel exact length input adjusts selected wall without modifying previous objects',()=>{const s=base(),next=setEdgeLength(s,0,350);assert.equal(metrics(next).edges[0].lengthCm,350);assert.equal(s.points[1].xCm,380);assert.equal(next.points[1].xCm,350);});
+test('point lock prevents pointer moves',()=>{const s=setPointLock(base(),1,true);assert.throws(()=>movePoint(s,1,300,20),/κλειδωμένο/);});
+test('locked wall length preserved by constrained endpoint drag',()=>{const s=setEdgeLock(base(),0,true),moved=movePoint(s,1,370,30);assert.equal(metrics(moved).edges[0].lengthCm,380);assert.ok(moved.points[1].zCm>0);});
+test('two locked adjacent wall lengths yield exact circle intersections or block',()=>{let s=setEdgeLock(base(),0,true);s=setEdgeLock(s,1,true);const next=movePoint(s,1,375,11);assert.equal(metrics(next).edges[0].lengthCm,380);assert.equal(metrics(next).edges[1].lengthCm,180);assert.equal(s.points[1].xCm,380);});
+test('locked neighbor dimension blocks wall slide without silent overwrite',()=>{let s=setEdgeLock(base(),0,true);assert.throws(()=>moveWall(s,1,20),/κλειδωμένο/);});
+test('editing a locked selected edge is explicit and lock adjusts',()=>{const s=setEdgeLock(base(),0,true);const moved=setEdgeLength(s,0,350);assert.equal(metrics(moved).edges[0].lengthCm,350);assert.equal(moved.edgeLocks[0].lengthCm,350);});
+test('invalid self crossing move is rejected and input stays immutable',()=>{const s=base();assert.throws(()=>movePoint(s,1,0,25),/διασταυρώνονται/);assert.equal(s.points[2].xCm,380);});
+test('point insertion splits a wall, preserving locked segments',()=>{let s=setEdgeLock(base(),0,true);s=insertPoint(s,0);assert.equal(s.points.length,7);assert.equal(s.edgeLocks.length,2);assert.equal(metrics(s).areaM2,9.72);});
+test('deleting unlocked point remains valid when footprint allows it',()=>{const s=deletePoint(base(),2);assert.equal(s.points.length,5);assert.ok(metrics(s).areaM2>0);});
+test('cannot delete point supporting locked wall or shrink below triangle',()=>{const s=setEdgeLock(base(),0,true);assert.throws(()=>deletePoint(s,1),/Ξεκλείδωσε/);});
+test('snap grid increments and free 0.1cm setting',()=>{assert.equal(snapValue(24.34,0),24.3);assert.equal(snapValue(24.34,1),24);assert.equal(snapValue(24.34,5),25);assert.equal(snapValue(24.34,10),20);assert.throws(()=>setSnap(base(),3));});
+test('undo redo group a completed drag into one action with monotonic revision',()=>{const store=createDesignerStore();const before=store.get(),n=store.commit(movePoint(before,1,360,0));assert.equal(store.history().undo,1);const u=store.undo();assert.ok(u.revision>n.revision);assert.equal(metrics(u).edges[0].lengthCm,380);const r=store.redo();assert.ok(r.revision>u.revision);assert.equal(metrics(r).edges[0].lengthCm,360);});
+test('locked coordinates block impossible edited dimension; no hidden distortion',()=>{let s=setPointLock(base(),0,true);s=setPointLock(s,1,true);assert.throws(()=>setEdgeLength(s,0,400),/κλειδωμένα/);validateDesign(s);});
+test('duplicate IDs and extreme coordinates rejected',()=>{const s=base();s.points[1].id='A';assert.throws(()=>validateDesign(s));assert.throws(()=>movePoint(base(),1,Infinity,0));assert.throws(()=>movePoint(base(),1,4000,0));});
+
+test('explicit wall angle edit rotates correct endpoint without altering locked length',()=>{let s=setEdgeLock(base(),0,true);s=setEdgeAngle(s,0,-2);assert.ok(metrics(s).edges[0].angleDeg<0);assert.equal(metrics(s).edges[0].lengthCm,380);});
+test('angle edit cannot silently move two locked vertices',()=>{let s=setPointLock(base(),0,true);s=setPointLock(s,1,true);assert.throws(()=>setEdgeAngle(s,0,12),/κλειδωμένα/);});
