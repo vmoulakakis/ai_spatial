@@ -9,7 +9,7 @@ const names:Record<Wall,string>={north:"Πάνω τοίχος",east:"Δεξιά 
 let start=initial();
 try{const raw=localStorage.getItem("fitspace-p0");if(raw){const candidate=JSON.parse(raw) as Scene;const solved=derive(candidate);if(solved.widthM>0&&solved.depthM>0&&Number.isFinite(solved.areaM2))start=candidate;}}catch{}
 const store=createStore(start);
-let selected:Wall="north",view:View="plan",yaw=40;
+let selected:Wall="north",view:View="plan",yaw=40,panel:"canvas"|"editor"="canvas";
 const notice=(s:string)=>{$("notice").textContent=s;};
 const operate=(fn:()=>unknown,success:string)=>{try{fn();notice(success);render();}catch(e){notice(e instanceof Error?e.message:"Αδύνατη ενέργεια.");}};
 const walls:Wall[]=["north","east","south","west"];
@@ -65,21 +65,27 @@ function render(){
  $("stats").innerHTML=stats.map(([k,v])=>'<div class="stat"><span>'+k+'</span><strong>'+v+'</strong></div>').join("");
  $("canvasTitle").textContent=view==="space"?"3D / ISOMETRIC ROOM":view==="scan"?"CAPTURE / MANUAL MODE":"2D / FLOOR PLAN";
  $("stage").innerHTML=view==="space"?threeD(s)+'<label class="yaw">Περιστροφή 3D <input id="yaw" type="range" min="-150" max="150" value="'+yaw+'"></label>':view==="scan"?'<div class="scan-visual">◎<p>AI scan · P1<br>Δεν έχουν μεταφορτωθεί φωτογραφίες.</p></div>':plan(s);
- $("inspector").innerHTML=inspector(s);($("undo") as HTMLButtonElement).disabled=!h.undo;($("redo") as HTMLButtonElement).disabled=!h.redo;
+ $("inspector").innerHTML=inspector(s);
+ const container=document.querySelector<HTMLElement>(".columns")!;
+ container.classList.toggle("panel-canvas",panel==="canvas");
+ container.classList.toggle("panel-editor",panel==="editor");
+ document.querySelectorAll<HTMLButtonElement>("[data-panel]").forEach(b=>{const isCurrent=b.dataset.panel===panel;b.classList.toggle("active",isCurrent);b.setAttribute("aria-selected",String(isCurrent));});
+ ($("undo") as HTMLButtonElement).disabled=!h.undo;($("redo") as HTMLButtonElement).disabled=!h.redo;
  document.querySelectorAll<HTMLButtonElement>("[data-view]").forEach(b=>{b.classList.toggle("active",b.dataset.view===view);if(b.dataset.view===view)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
  try{localStorage.setItem("fitspace-p0",JSON.stringify(s));}catch{notice("Δεν είναι διαθέσιμη η τοπική αποθήκευση.");}
 }
 document.addEventListener("click",event=>{
- const b=(event.target as Element).closest<HTMLElement>("[data-view],[data-select],[data-wall],[data-apply],[data-calibrate],[data-resolve],[data-confirm-item],#undo,#redo,#reset");if(!b)return;
- if(b.dataset.view){view=b.dataset.view as View;render();return;}
- if(b.dataset.select||b.dataset.wall){selected=(b.dataset.select||b.dataset.wall) as Wall;render();return;}
+ const b=(event.target as Element).closest<HTMLElement>("[data-view],[data-panel],[data-select],[data-wall],[data-apply],[data-calibrate],[data-resolve],[data-confirm-item],#undo,#redo,#reset");if(!b)return;
+ if(b.dataset.view){view=b.dataset.view as View;panel=view==="fit"||view==="scan"?"editor":"canvas";render();return;}
+ if(b.dataset.panel){panel=b.dataset.panel as "canvas"|"editor";render();return;}
+ if(b.dataset.select||b.dataset.wall){selected=(b.dataset.select||b.dataset.wall) as Wall;panel="editor";render();return;}
  if(b.dataset.apply!==undefined){operate(()=>store.editWall(selected,numeric(($("wallCm") as HTMLInputElement).value)),"Ενημερώθηκαν κάτοψη, 3D και fit check.");return;}
  if(b.dataset.calibrate!==undefined){operate(()=>store.setReference(($("reference") as HTMLInputElement).value),"Καταχωρίστηκε η αναφορά.");return;}
  if(b.dataset.resolve){const [axis,wall]=b.dataset.resolve.split(":");operate(()=>store.resolve(axis as Axis,wall as Wall),"Η σύγκρουση επιλύθηκε.");return;}
  if(b.dataset.confirmItem!==undefined){operate(()=>store.confirmItem(),"Οι διαστάσεις δηλώθηκαν.");return;}
  if(b.id==="undo"){store.undo();render();return;}
  if(b.id==="redo"){store.redo();render();return;}
- if(b.id==="reset"){store.reset();view="plan";render();}
+ if(b.id==="reset"){store.reset();view="plan";panel="canvas";render();}
 });
 document.addEventListener("change",event=>{
  const e=event.target as HTMLInputElement;
