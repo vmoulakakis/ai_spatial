@@ -22,3 +22,5 @@
  .canvasfoot{padding:11px;font-size:9px}
  .inspector{padding:18px}
 }
+
+.polygon-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 12px;border-radius:9px;background:#c7ed83;color:#143625;text-decoration:none;font-size:12px;font-weight:800}.polygon-link:focus-visible{outline:3px solid #236c79;outline-offset:2px}
