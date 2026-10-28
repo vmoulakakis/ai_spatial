@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {demoDesigner,movePoint} from '../dist/packages/geometry-core/designer.js';
+import {emptyFurnishing,furnishItem,editFurniture,validateFurniture,footprint,removeFurniture,createFurnishingStore} from '../dist/packages/geometry-core/furnish.js';
+test('Furniture add inside concave L room',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'sofa');assert.equal(s.items.length,1);assert.equal(s.items[0].widthCm,160);assert.equal(validateFurniture(room,s),undefined);});
+test('Furniture moves with measured centimetres',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'sofa');const c=editFurniture(s,room,s.items[0].id,{xCm:165});assert.equal(c.items[0].xCm,165);assert.equal(s.items[0].xCm,90);});
+test('Reject furniture outside outline',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'sofa');assert.throws(()=>editFurniture(s,room,s.items[0].id,{xCm:390}),/δεν χωρά/);});
+test('Reject unknown RGB color',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'table');assert.throws(()=>editFurniture(s,room,s.items[0].id,{color:'red'}),/χρώμα/);});
+test('Rotated footprint is stable',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'table');const item=s.items[0];const corners=footprint({...item,rotationDeg:90});assert.ok(Math.abs(Math.hypot(corners[0].xCm-item.xCm,corners[0].zCm-item.zCm)-Math.hypot(item.widthCm,item.depthCm)/2)<1e-7);});
+test('Overlap is rejected',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'sofa');assert.throws(()=>validateFurniture(room,{revision:0,items:[s.items[0],{...s.items[0],id:'item2'}]}),/επικαλύπτονται/);});
+test('Removed furniture not present',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'sofa');assert.equal(removeFurniture(s,s.items[0].id).items.length,0);});
+test('Furniture store undo and redo',()=>{const room=demoDesigner(),store=createFurnishingStore(room);store.commit(furnishItem(store.get(),room,'table'),room);assert.equal(store.get().items.length,1);store.undo(room);assert.equal(store.get().items.length,0);store.redo(room);assert.equal(store.get().items.length,1);});
+test('Room change invalidates out-of-room furnishing',()=>{const room=demoDesigner(),s=furnishItem(emptyFurnishing(),room,'sofa');const shrunk=movePoint(room,1,90,0);assert.throws(()=>validateFurniture(shrunk,s),/δεν χωρά/);});

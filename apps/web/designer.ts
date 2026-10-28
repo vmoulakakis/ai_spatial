@@ -1,3 +1,4 @@
+import {emptyFurnishing,createFurnishingStore,furnishItem,editFurniture,removeFurniture,validateFurniture,type FurnishingScene} from '../../packages/geometry-core/furnish.js';
 import {demoDesigner,createDesignerStore,metrics,movePoint,moveWall,setEdgeLength,setEdgeAngle,setPointLock,setEdgeLock,setSnap,insertPoint,deletePoint,snapValue,type DesignerScene} from '../../packages/geometry-core/designer.js';
 type Selection={type:'point'|'wall';index:number};
 type Camera={x:number;y:number;w:number;h:number};
@@ -7,6 +8,14 @@ const number=(id:string)=>Number(($<HTMLInputElement>(id).value).replace(',','.'
 const fmt=(n:number,digits=1)=>new Intl.NumberFormat('el-GR',{minimumFractionDigits:0,maximumFractionDigits:digits}).format(n);
 let state=demoDesigner();try{const raw=localStorage.getItem('fitspace-v5-design');if(raw){const saved=JSON.parse(raw);metrics(saved);state=saved;}}catch{}
 const store=createDesignerStore(state);
+let savedFurniture=emptyFurnishing();
+try{const raw=localStorage.getItem('fitspace-v6-furniture');if(raw){const parsed=JSON.parse(raw) as FurnishingScene;validateFurniture(state,parsed);savedFurniture=parsed;}}catch{}
+const furnishingStore=createFurnishingStore(state,savedFurniture);
+let furnishingPreview:FurnishingScene|null=null,selectedFurniture:string|null=null;
+type ThreeAdapter={update:(room:DesignerScene,items:FurnishingScene['items'],selectedId:string|null)=>void;dispose:()=>void};
+let webgl:ThreeAdapter|null=null,webglToken=0;
+function furnitureScene(){return furnishingPreview||furnishingStore.get();}
+
 let selection:Selection={type:'point',index:1},view:'2d'|'3d'='2d',drawer=false,mode:'select'|'pan'='select';
 let drag:Drag|null=null;
 let current=store.get();
@@ -49,7 +58,7 @@ function threeSVG(scene:DesignerScene){const pts=scene.points;const project=(p:{
  return `<svg data-testid="designer-3d" role="img" aria-label="Ισομετρική επισκόπηση της ίδιας γεωμετρίας" viewBox="${minX-80} ${minY-80} ${Math.max(340,maxX-minX+160)} ${Math.max(300,maxY-minY+160)}" preserveAspectRatio="xMidYMid meet">${poly(floor,'#31564c')}${floor.map((p,i)=>poly([p,floor[(i+1)%floor.length],top[(i+1)%top.length],top[i]],i%2===0?'#648c7899':'#8daa9490')).join('')}${floor.map((p,i)=>`<text x="${p.x+8}" y="${p.y-8}" class="corner-label">${safe(pts[i].id)}</text>`).join('')}</svg>`;
 }
 function paint(scene:DesignerScene){current=scene;const m=dims(scene),edge=selection.type==='wall'?m.edges[selection.index]:null,point=selection.type==='point'?scene.points[selection.index]:null;
- $('drawing').innerHTML=view==='2d'?planSVG(scene):threeSVG(scene);
+ if(view==='2d'){$('drawing').innerHTML=planSVG(scene);}else if(webgl){webgl.update(scene,furnitureScene().items,selectedFurniture);}else {$('drawing').innerHTML=threeSVG(scene);}
  $('metricFirst').textContent=fmt(m.edges[0].lengthCm)+' cm';
  $('metricSelected').textContent=edge?fmt(edge.lengthCm)+' cm':point?`X ${fmt(point.xCm)} / Y ${fmt(point.zCm)}`:'—';
  $('metrics').innerHTML=`<div><span>ΕΜΒΑΔΟΝ</span><strong>${fmt(m.areaM2,2)} m²</strong></div><div><span>ΠΕΡΙΜΕΤΡΟΣ</span><strong>${fmt(m.perimeterCm)} cm</strong></div><div><span>ΓΩΝΙΕΣ</span><strong>${scene.points.length}</strong></div>`;
@@ -65,14 +74,56 @@ function paint(scene:DesignerScene){current=scene;const m=dims(scene),edge=selec
  $('wallProperties').classList.toggle('hide',!edge);
  $('revision').textContent=`REV ${scene.revision}`;
  $('snapLabel').textContent=scene.snapCm===0?'FREE':scene.snapCm+' cm';
+ renderFurniturePanel(scene);
 }
 function refresh(){const s=store.get();paint(s);const h=store.history();for(const id of ['undo','undoTool'])($<HTMLButtonElement>(id)).disabled=!h.undo;for(const id of ['redo','redoTool'])($<HTMLButtonElement>(id)).disabled=!h.redo;
  ($<HTMLSelectElement>('gridStep')).value=String(s.snapCm);
  $('inspector').classList.toggle('open',drawer);$('mobileToggle').setAttribute('aria-expanded',String(drawer));$('mobileToggle').textContent=drawer?'✕ Κλείσιμο':'✎ Διαστάσεις';
  $('view2D').setAttribute('aria-pressed',String(view==='2d'));$('view3D').setAttribute('aria-pressed',String(view==='3d'));
  $('selectTool').setAttribute('aria-pressed',String(mode==='select'));$('panTool').setAttribute('aria-pressed',String(mode==='pan'));
- try{localStorage.setItem('fitspace-v5-design',JSON.stringify(s));}catch{info('Δεν είναι διαθέσιμη η τοπική αποθήκευση.',true);}
+ try{localStorage.setItem('fitspace-v5-design',JSON.stringify(s));localStorage.setItem('fitspace-v6-furniture',JSON.stringify(furnishingStore.get()));}catch{info('Δεν είναι διαθέσιμη η τοπική αποθήκευση.',true);}
 }
+function renderFurniturePanel(room:DesignerScene){
+ const panel=$('furniturePanel');panel.hidden=view!=='3d';
+ const items=furnitureScene().items;const list=$('furnitureList');
+ const chosen=items.find(i=>i.id===selectedFurniture)||null;
+ list.innerHTML=items.length?items.map(i=>`<button type="button" data-furniture="${i.id}" aria-pressed="${i.id===selectedFurniture}">${i.kind==='sofa'?'Καναπές':i.kind==='desk'?'Γραφείο':'Τραπέζι'} · ${i.widthCm}×${i.depthCm} cm</button>`).join(''):'<p class="subtle">Ο χώρος είναι κενός. Πρόσθεσε αντικείμενο.</p>';
+ $('furnitureProperties').hidden=!chosen;
+ if(chosen){for(const [id,value] of [['objX',chosen.xCm],['objZ',chosen.zCm],['objWidth',chosen.widthCm],['objDepth',chosen.depthCm],['objHeight',chosen.heightCm],['objRotation',chosen.rotationDeg]] as const)($<HTMLInputElement>(id)).value=String(value);
+  ($<HTMLInputElement>('objColor')).value=chosen.color;
+  $('furnitureTitle').textContent=`${chosen.kind==='sofa'?'Καναπές':chosen.kind==='desk'?'Γραφείο':'Τραπέζι'} · ${chosen.id}`;}
+ const warning=$('furnitureWarning');try{validateFurniture(room,furnitureScene());warning.textContent='Ενδεικτικές γεωμετρικές αποστάσεις — όχι πιστοποιημένο fit.';warning.classList.remove('error');}
+ catch(err){warning.textContent=(err instanceof Error?err.message:'Η νέα κάτοψη δεν χωρά τα έπιπλα.')+' Επίλεξε ένα αντικείμενο και διόρθωσε τη θέση.';warning.classList.add('error');}
+}
+async function activateWebGL(){
+ const token=++webglToken;
+ const host=$('drawing');host.innerHTML=threeSVG(store.get());
+ info('Φόρτωση 3D WebGL…');
+ try{const uri='/apps/web/three-viewer.bundle.js';const mod=await import(uri);
+  if(token!==webglToken||view!=='3d')return;
+  webgl=mod.mountThree(host,{onPick:(id:string)=>{selectedFurniture=id;refresh();},onMove:(id:string,x:number|null,z:number|null,done:boolean)=>{
+   if(done){if(furnishingPreview){try{furnishingStore.commit(furnishingPreview,store.get());info('Η μετακίνηση επίπλου καταχωρίστηκε.');}catch(err){info(err instanceof Error?err.message:'Αδύνατη μετακίνηση.',true);}furnishingPreview=null;refresh();}return;}
+   try{furnishingPreview=editFurniture(furnishingStore.get(),store.get(),id,{xCm:x!,zCm:z!});paint(store.get());}
+   catch(err){info(err instanceof Error?err.message:'Δεν χωρά στη θέση αυτή.',true);}
+  }});
+  webgl?.update(store.get(),furnishingStore.get().items,selectedFurniture);
+  info('3D WebGL ενεργό. Περιστροφή με σύρσιμο, zoom με δύο δάχτυλα. Τα έπιπλα μετακινούνται μέσα στον χώρο.');
+ }catch(err){if(token!==webglToken||view!=='3d')return;webgl=null;host.innerHTML=threeSVG(store.get());info('WebGL μη διαθέσιμο. Εμφανίζεται ισομετρική SVG προεπισκόπηση.',true);}
+}
+function endWebGL(){++webglToken;furnishingPreview=null;if(webgl){webgl.dispose();webgl=null;}}
+function furnitureAction(operation:()=>FurnishingScene,message:string){try{const result=operation();furnishingStore.commit(result,store.get());selectedFurniture=(selectedFurniture&&result.items.some(i=>i.id===selectedFurniture)?selectedFurniture:result.items.at(-1)?.id)||null;info(message);refresh();}catch(err){info(err instanceof Error?err.message:'Μη έγκυρη επίπλωση.',true);}}
+$('addSofa').addEventListener('click',()=>furnitureAction(()=>furnishItem(furnishingStore.get(),store.get(),'sofa'),'Προστέθηκε ενδεικτικός καναπές σε πραγματικές αναλογίες.'));
+$('addTable').addEventListener('click',()=>furnitureAction(()=>furnishItem(furnishingStore.get(),store.get(),'table'),'Προστέθηκε ενδεικτικό τραπέζι.'));
+$('addDesk').addEventListener('click',()=>furnitureAction(()=>furnishItem(furnishingStore.get(),store.get(),'desk'),'Προστέθηκε ενδεικτικό γραφείο.'));
+$('furnitureList').addEventListener('click',e=>{const item=(e.target as Element).closest<HTMLElement>('[data-furniture]');if(item){selectedFurniture=item.dataset.furniture||null;refresh();}});
+$('updateFurniture').addEventListener('click',()=>furnitureAction(()=>{
+ if(!selectedFurniture)throw Error('Επίλεξε έπιπλο.');
+ const result=editFurniture(furnishingStore.get(),store.get(),selectedFurniture,{xCm:number('objX'),zCm:number('objZ'),widthCm:number('objWidth'),depthCm:number('objDepth'),heightCm:number('objHeight'),rotationDeg:number('objRotation'),color:($<HTMLInputElement>('objColor')).value});
+ return result;
+},'Ενημερώθηκαν οι ακριβείς διαστάσεις, θέση και χρώμα.'));
+$('removeFurniture').addEventListener('click',()=>furnitureAction(()=>removeFurniture(furnishingStore.get(),selectedFurniture||''),'Το αντικείμενο αφαιρέθηκε από το 3D.'));
+$('furnitureUndo').addEventListener('click',()=>{try{const next=furnishingStore.undo(store.get());selectedFurniture=next.items.some(i=>i.id===selectedFurniture)?selectedFurniture:next.items.at(-1)?.id||null;refresh();}catch(err){info(err instanceof Error?err.message:'Undo μη διαθέσιμο.',true);}});
+$('furnitureRedo').addEventListener('click',()=>{try{const next=furnishingStore.redo(store.get());selectedFurniture=next.items.some(i=>i.id===selectedFurniture)?selectedFurniture:next.items.at(-1)?.id||null;refresh();}catch(err){info(err instanceof Error?err.message:'Redo μη διαθέσιμο.',true);}});
 function apply(callback:()=>DesignerScene,message:string){try{callback();info(message);refresh();}catch(e){info(e instanceof Error?e.message:'Μη επιτρεπτή αλλαγή.',true);}}
 function mapPointer(e:PointerEvent){const svg=document.querySelector<SVGSVGElement>('#cad-svg');if(!svg)return null;const ctm=svg.getScreenCTM();if(!ctm)return null;const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(ctm.inverse());return {x:p.x,y:p.y};}
 function snapped(scene:DesignerScene,v:number){return snapValue(v,scene.snapCm);}
@@ -134,12 +185,12 @@ for(const id of ['undo','undoTool'])$(id).addEventListener('click',()=>{store.un
 for(const id of ['redo','redoTool'])$(id).addEventListener('click',()=>{store.redo();info('Επαναφορά.');refresh();});
 $('reset').addEventListener('click',()=>{store.reset();selection={type:'point',index:1};fitCamera(store.get());refresh();info('Φορτώθηκε το ενδεικτικό δωμάτιο Γ.');});
 $('mobileToggle').addEventListener('click',()=>{drawer=!drawer;refresh();});
-for(const [id,next] of [['view2D','2d'],['view3D','3d']] as const)$(id).addEventListener('click',()=>{view=next;refresh();info(view==='2d'?'Άμεση επεξεργασία σημείων και τοίχων.':'3D προεπισκόπηση — επεξεργασία στην 2D κάτοψη.');});
+for(const [id,next] of [['view2D','2d'],['view3D','3d']] as const)$(id).addEventListener('click',()=>{if(view===next)return;if(view==='3d')endWebGL();view=next;refresh();if(next==='3d')void activateWebGL();else info('Άμεση επεξεργασία σημείων και τοίχων σε cm.');});
 for(const [id,next] of [['selectTool','select'],['panTool','pan']] as const)$(id).addEventListener('click',()=>{mode=next;refresh();});
 function zoom(v:number){camera={...camera,x:camera.x+(camera.w-camera.w*v)/2,y:camera.y+(camera.h-camera.h*v)/2,w:camera.w*v,h:camera.h*v};paint(current);}
 $('zoomIn').addEventListener('click',()=>zoom(.8));$('zoomOut').addEventListener('click',()=>zoom(1.25));
 for(const id of ['fitView','fitTool'])$(id).addEventListener('click',()=>{fitCamera(store.get());paint(current);});
 $('gridTool').addEventListener('click',()=>{const steps=[0,1,5,10],v=store.get().snapCm;apply(()=>store.commit(setSnap(store.get(),steps[(steps.indexOf(v)+1)%steps.length])),'Άλλαξε το snap.');});
-$('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({format:'fitspace-designer-v5',unit:'cm',scene:store.get()},null,2)],{type:'application/json'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='fitspace-room.json';a.click();URL.revokeObjectURL(u);info('Εξήχθη το γεωμετρικό σχέδιο σε JSON.');});
+$('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({format:'fitspace-designer-v6',unit:'cm',scene:store.get(),furniture:furnishingStore.get()},null,2)],{type:'application/json'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='fitspace-room.json';a.click();URL.revokeObjectURL(u);info('Εξήχθη το γεωμετρικό σχέδιο σε JSON.');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(drag){const d=drag;drag=null;paint(d.scene);info('Ακυρώθηκε η μετακίνηση.');}else if(drawer){drawer=false;refresh();}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();store.undo();refresh();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();store.redo();refresh();}});
 refresh();

@@ -1,21 +1,25 @@
 {
   "name": "fitspace-ai-spatial-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "FitSpace geometry-first P0 mobile web editor",
+  "description": "FitSpace precision CAD + on-demand WebGL 3D and constrained furniture preview",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node tools/copy-assets.mjs",
-    "check": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json && node tools/copy-assets.mjs && esbuild apps/web/three-viewer.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/apps/web/three-viewer.bundle.js --minify",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs && node tests/measurement.browser.e2e.mjs && node tests/designer.browser.e2e.mjs",
-    "start": "node tools/serve.mjs"
+    "start": "node tools/serve.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs && node tests/measurement.browser.e2e.mjs && node tests/designer.browser.e2e.mjs && node tests/webgl.browser.e2e.mjs"
   },
   "devDependencies": {
     "typescript": "5.8.3",
-    "playwright": "1.64.1"
+    "playwright": "1.64.1",
+    "esbuild": "0.25.12"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "three": "0.186.1"
   }
 }
