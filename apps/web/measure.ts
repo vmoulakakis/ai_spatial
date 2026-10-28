@@ -9,7 +9,8 @@ let selected:string|null=null;
 let view:"2d"|"3d"="2d",panel:"canvas"|"editor"="canvas";
 const say=(message:string)=>{el("notice").textContent=message;};
 function update(fn:()=>unknown,message:string){try{fn();say(message);render();}catch(err){say(err instanceof Error?err.message:"Αδύνατη αλλαγή.");}}
-const letter=(index:number)=>index===0?"A":index<27?String.fromCharCode(64+index):`P${index}`;
+const letter=(index:number)=>index<26?String.fromCharCode(65+index):`P${index}`;
+const roundVB=(value:number)=>Math.round(value*10)/10;
 function draw(scene:MeasurementScene):string {
  const s=solveMeasurement(scene),raw=s.points;
  const xs=raw.map(p=>p.xCm),zs=raw.map(p=>p.zCm),minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
@@ -38,7 +39,11 @@ function draw(scene:MeasurementScene):string {
   else for(let i=1;i<bottom.length;i++)objects+=`<line x1="${bottom[i-1].x}" y1="${bottom[i-1].y}" x2="${bottom[i].x}" y2="${bottom[i].y}" stroke="#bce487" stroke-width="4"/>`;
   bottom.forEach((p,i)=>{objects+=`<circle r="5" cx="${p.x}" cy="${p.y}" fill="#f3ca83"/><text x="${p.x+8}" y="${p.y-8}">${letter(i)}</text>`;});
  }
- return `<svg data-testid="measured-geometry" role="img" aria-label="${view==='2d'?'Δισδιάστατη κάτοψη':'Ισομετρική τρισδιάστατη προεπισκόπηση'} έκδοση ${scene.revision}" viewBox="0 0 ${view==='2d'?Math.max(670,Math.round((maxX-minX)*factor+180)):850} ${view==='2d'?Math.max(470,Math.round((maxZ-minZ)*factor+180)):550}">${objects}</svg>`;
+ const projected=raw.flatMap(p=>[0,250].map(y=>({x:400+(p.xCm-p.zCm)*.58*factor,y:160+(p.xCm+p.zCm)*.24*factor-y*.48*factor})));
+ const vx=projected.map(p=>p.x),vy=projected.map(p=>p.y);
+ const minVx=Math.min(...vx),maxVx=Math.max(...vx),minVy=Math.min(...vy),maxVy=Math.max(...vy);
+ const viewBox=view==='2d'?`0 0 ${Math.max(670,Math.round((maxX-minX)*factor+180))} ${Math.max(470,Math.round((maxZ-minZ)*factor+180))}`:`${roundVB(minVx-50)} ${roundVB(minVy-50)} ${Math.max(320,roundVB(maxVx-minVx+100))} ${Math.max(240,roundVB(maxVy-minVy+100))}`;
+ return `<svg data-testid="measured-geometry" role="img" aria-label="${view==='2d'?'Δισδιάστατη κάτοψη':'Ισομετρική τρισδιάστατη προεπισκόπηση'} έκδοση ${scene.revision}" viewBox="${viewBox}">${objects}</svg>`;
 }
 function render(){
  const scene=store.get(),s=solveMeasurement(scene),h=store.history();

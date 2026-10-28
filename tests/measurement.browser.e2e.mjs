@@ -22,6 +22,7 @@ try{
   await page.locator('#example').click();
   assert.match(await page.locator('#stats').innerText(),/9,72/);
   await page.screenshot({path:`test-results/v4-measure-${width}-example.png`,fullPage:true});
+  assert.match(await page.locator('[data-wall="w1"]').innerText(),/A → B/);
   await page.locator('[data-wall="w1"]').click();
   await page.locator('#editLength').fill('320');
   await page.locator('#editForm button[type=submit]').click();
@@ -34,6 +35,8 @@ try{
   if(width<=920)await page.locator('#canvasTab').click();
   await page.locator('#threeBtn').click();
   assert.match(await page.locator('svg').getAttribute('aria-label'),/Ισομετρική/);
+  const [, , renderedWidth] = (await page.locator('svg').getAttribute('viewBox')).split(' ').map(Number);
+  assert.ok(renderedWidth<800,'3D view must frame geometry, not tiny in a static canvas');
   await page.screenshot({path:`test-results/v4-measure-${width}-3d.png`,fullPage:true});
   assert.equal(errors.length,0,errors.join('; '));
   await context.close();
