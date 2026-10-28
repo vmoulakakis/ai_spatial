@@ -16,7 +16,7 @@
 - GitHub Actions performed TypeScript typecheck, build, 9 unit tests and Playwright Chromium E2E successfully on the first P0 editor commit.
 - GitHub Actions uploaded mobile, desktop, tablet, 3D and conflict screenshot artifacts.
 - A visual QA review of these screenshots identified excessive mobile vertical stacking; following that observation, the mobile UI was changed to two explicit states: drawing and corrections.
-- The **final mobile state change requires its own green CI run and visual inspection** before declaring visual QA complete.
+- The final two-panel mobile state passed PR-specific GitHub Actions CI (run 40683684671: TypeScript + 9 unit tests + Playwright Chromium mobile/tablet/desktop E2E) and its screenshot artifact was visually inspected. This is browser automation evidence, not physical-device or assistive-technology certification.
 
 ## Safety and fidelity limitations
 - The canonical room is an axis-aligned rectangle; arbitrary polygons, inconsistent corner/angle constraints, door apertures, obstacle routes and true 3D collision remain future work.
