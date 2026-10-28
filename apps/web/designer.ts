@@ -195,3 +195,21 @@ $('gridTool').addEventListener('click',()=>{const steps=[0,1,5,10],v=store.get()
 $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({format:'fitspace-designer-v6',unit:'cm',scene:store.get(),furniture:furnishingStore.get()},null,2)],{type:'application/json'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='fitspace-room.json';a.click();URL.revokeObjectURL(u);info('Εξήχθη το γεωμετρικό σχέδιο σε JSON.');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(drag){const d=drag;drag=null;paint(d.scene);info('Ακυρώθηκε η μετακίνηση.');}else if(drawer){drawer=false;refresh();}}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();store.undo();refresh();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();store.redo();refresh();}});
 refresh();
+
+// V7 capture bridge: geometry remains authoritative. No pixels or model inference enter the CAD graph.
+window.addEventListener('fitspace:capture-edges',event=>{
+ const reply=(event as CustomEvent<{respond:(edges:{index:number;from:string;to:string;lengthCm:number}[])=>void}>).detail?.respond;
+ if(typeof reply==='function')reply(metrics(store.get()).edges.map(({index,from,to,lengthCm})=>({index,from,to,lengthCm})));
+});
+window.addEventListener('fitspace:apply-anchor',event=>{
+ const detail=(event as CustomEvent<{edgeIndex:number;measuredCm:number;respond:(result:{ok:boolean;message:string})=>void}>).detail;
+ if(!detail||typeof detail.respond!=='function')return;
+ try{
+  const index=detail.edgeIndex,length=detail.measuredCm;
+  if(!Number.isInteger(index)||index<0||index>=store.get().points.length||!Number.isFinite(length)||length<10||length>3000)throw Error('Μη έγκυρη βαθμονόμηση.');
+  store.commit(setEdgeLength(store.get(),index,length));
+  selection={type:'wall',index};refresh();
+  info(`Επιβεβαιωμένη μέτρηση μετροταινίας: ${length} cm. Οι άλλοι κλειδωμένοι τοίχοι δεν αλλοιώθηκαν.`);
+  detail.respond({ok:true,message:'Η κάτοψη επανυπολογίστηκε χωρίς αυτόματη υπόθεση από φωτογραφία.'});
+ }catch(e){detail.respond({ok:false,message:e instanceof Error?e.message:'Η κάτοψη απέρριψε τη μεταβολή.'});}
+});

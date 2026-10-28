@@ -9,7 +9,7 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "start": "node tools/serve.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
-    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs && node tests/measurement.browser.e2e.mjs && node tests/designer.browser.e2e.mjs && node tests/webgl.browser.e2e.mjs"
+    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs && node tests/measurement.browser.e2e.mjs && node tests/designer.browser.e2e.mjs && node tests/webgl.browser.e2e.mjs && node tests/capture.browser.e2e.mjs"
   },
   "devDependencies": {
     "typescript": "5.8.3",
