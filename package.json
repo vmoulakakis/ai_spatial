@@ -5,11 +5,11 @@
   "type": "module",
   "description": "FitSpace precision CAD + on-demand WebGL 3D and constrained furniture preview",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node tools/copy-assets.mjs && esbuild apps/web/three-viewer.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/apps/web/three-viewer.bundle.js --minify",
+    "build": "tsc -p tsconfig.json && node tools/copy-assets.mjs && esbuild apps/web/three-viewer.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/apps/web/three-viewer.bundle.js --minify && esbuild apps/web/architecture-three.mjs --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/apps/web/architecture-three.bundle.js --minify",
     "test": "npm run build && node --test tests/*.test.mjs",
     "start": "node tools/serve.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
-    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs && node tests/measurement.browser.e2e.mjs && node tests/designer.browser.e2e.mjs && node tests/webgl.browser.e2e.mjs && node tests/capture.browser.e2e.mjs"
+    "browser:test": "npm run build && node tests/browser.e2e.mjs && node tests/polygon.browser.e2e.mjs && node tests/measurement.browser.e2e.mjs && node tests/designer.browser.e2e.mjs && node tests/webgl.browser.e2e.mjs && node tests/capture.browser.e2e.mjs && node tests/reconstruct.browser.e2e.mjs"
   },
   "devDependencies": {
     "typescript": "5.8.3",
