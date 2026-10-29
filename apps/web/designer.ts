@@ -7,6 +7,8 @@ const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(
 const number=(id:string)=>Number(($<HTMLInputElement>(id).value).replace(',','.'));
 const fmt=(n:number,digits=1)=>new Intl.NumberFormat('el-GR',{minimumFractionDigits:0,maximumFractionDigits:digits}).format(n);
 let state=demoDesigner();try{const raw=localStorage.getItem('fitspace-v5-design');if(raw){const saved=JSON.parse(raw);metrics(saved);state=saved;}}catch{}
+// V8: explicit same-origin one-time transfer of the floor plan (no user photos).
+try{const pending=sessionStorage.getItem('fitspace-v8-cad-import');if(pending){const parsed=JSON.parse(pending);metrics(parsed);state=parsed;sessionStorage.removeItem('fitspace-v8-cad-import');}}catch{}
 const store=createDesignerStore(state);
 let savedFurniture=emptyFurnishing();
 try{const raw=localStorage.getItem('fitspace-v6-furniture');if(raw){const parsed=JSON.parse(raw) as FurnishingScene;validateFurniture(state,parsed);savedFurniture=parsed;}}catch{}
