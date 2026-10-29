@@ -27,6 +27,7 @@ for(const [width,height] of [[320,720],[390,844],[768,1024],[1440,900]]){
  await page.locator('#clean').click();
  const onePixel=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEAmStCEyongcVnSU9DOe/b4s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfeF1AfyyszZJAAAAAElFTkSuQmCC','base64');
  await page.locator('#photos').setInputFiles([{name:'front.png',mimeType:'image/png',buffer:onePixel}]);
+ await page.waitForFunction(()=>document.querySelector('#photoCount')?.textContent?.includes('1 φωτογραφία'),null,{timeout:15000});
  assert.match(await page.locator('#photoCount').innerText(),/1 φωτογραφία/);
  await page.locator('#clean').click();assert.match(await page.locator('#notice').innerText(),/συγκατάθεση/);
  await page.locator('#consent').check();await page.locator('#clean').click();assert.match(await page.locator('#notice').innerText(),/AI|υπηρεσία/i);
